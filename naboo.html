@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Naboo Regional Explorer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0a0a0f;
+            color: #00c3ff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            background: linear-gradient(180deg, #060a12 0%, #0f1721 100%);
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0f;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 1s ease-out;
+        }
+        
+        .loading-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 18px;
+            color: #4db8ff;
+            margin-top: 20px;
+            letter-spacing: 2px;
+        }
+        
+        .loading-bar {
+            width: 200px;
+            height: 4px;
+            background: #1c1c2d;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading-bar::before {
+            content: "";
+            position: absolute;
+            width: 40px;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(77, 184, 255, 0) 0%, #4db8ff 50%, rgba(77, 184, 255, 0) 100%);
+            animation: loading 1.5s infinite linear;
+        }
+        
+        @keyframes loading {
+            0% { transform: translateX(-40px); }
+            100% { transform: translateX(200px); }
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 33, 0.95);
+            border-bottom: 2px solid #4db8ff;
+            padding: 15px 30px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(77, 184, 255, 0.5);
+        }
+        
+        .header h1 {
+            font-size: 1.8em;
+            text-shadow: 0 0 10px #4db8ff;
+            margin: 0;
+            color: #4db8ff;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .control-btn {
+            background: rgba(20, 60, 100, 0.8);
+            border: 2px solid #4db8ff;
+            color: #4db8ff;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .control-btn:hover {
+            background: rgba(77, 184, 255, 0.2);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(77, 184, 255, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .main-content {
+            position: relative;
+            z-index: 10;
+            padding: 100px 30px 30px 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .intro-panel {
+            background: rgba(15, 23, 33, 0.95);
+            border: 2px solid #4db8ff;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 0 30px rgba(77, 184, 255, 0.5);
+        }
+        
+        .intro-panel h2 {
+            color: #4db8ff;
+            font-size: 2em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #4db8ff;
+        }
+        
+        .intro-panel p {
+            color: #88ccff;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .regions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .region-card {
+            background: rgba(15, 23, 33, 0.95);
+            border: 2px solid #4db8ff;
+            border-radius: 10px;
+            padding: 25px;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(77, 184, 255, 0.3);
+        }
+        
+        .region-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(77, 184, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .region-card:hover::before {
+            left: 100%;
+        }
+        
+        .region-card:hover {
+            transform: translateY(-10px);
+            border-color: #66d9ff;
+            box-shadow: 0 10px 40px rgba(77, 184, 255, 0.6);
+        }
+        
+        .region-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .region-icon {
+            font-size: 3em;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        .region-title h3 {
+            color: #4db8ff;
+            font-size: 1.6em;
+            margin-bottom: 5px;
+            text-shadow: 0 0 8px #4db8ff;
+        }
+        
+        .region-type {
+            color: #00ff88;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .region-description {
+            color: #88ccff;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+        
+        .location-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .location-tag {
+            background: rgba(77, 184, 255, 0.2);
+            border: 1px solid #4db8ff;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            color: #4db8ff;
+            transition: all 0.3s;
+        }
+        
+        .location-tag:hover {
+            background: rgba(77, 184, 255, 0.4);
+            transform: scale(1.05);
+        }
+        
+        .danger-level {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 170, 0, 0.1);
+            border-left: 3px solid #ffaa00;
+            border-radius: 5px;
+        }
+        
+        .danger-level.peaceful {
+            background: rgba(0, 255, 136, 0.1);
+            border-left-color: #00ff88;
+        }
+        
+        .danger-level.low {
+            background: rgba(77, 184, 255, 0.1);
+            border-left-color: #4db8ff;
+        }
+        
+        .danger-level.medium {
+            background: rgba(255, 170, 0, 0.1);
+            border-left-color: #ffaa00;
+        }
+        
+        .danger-level strong {
+            color: #4db8ff;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            overflow-y: auto;
+            padding: 80px 20px 20px 20px;
+        }
+        
+        .modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .modal-content {
+            background: rgba(15, 23, 33, 0.98);
+            border: 2px solid #4db8ff;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 0 50px rgba(77, 184, 255, 0.7);
+            position: relative;
+            animation: modalAppear 0.3s ease;
+        }
+        
+        @keyframes modalAppear {
+            0% { opacity: 0; transform: scale(0.9) translateY(-50px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 170, 0, 0.2);
+            border: 2px solid #ffaa00;
+            color: #ffaa00;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .modal-close:hover {
+            background: rgba(255, 170, 0, 0.4);
+            transform: rotate(90deg) scale(1.1);
+        }
+        
+        .modal-header {
+            margin-bottom: 25px;
+        }
+        
+        .modal-header h2 {
+            color: #4db8ff;
+            font-size: 2.5em;
+            text-shadow: 0 0 15px #4db8ff;
+            margin-bottom: 10px;
+        }
+        
+        .modal-section {
+            margin-bottom: 25px;
+        }
+        
+        .modal-section h3 {
+            color: #00ff88;
+            font-size: 1.4em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .modal-section p, .modal-section li {
+            color: #88ccff;
+            line-height: 1.6;
+            font-size: 1.1em;
+        }
+        
+        .modal-section ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .modal-section li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .modal-section li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #4db8ff;
+        }
+        
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            opacity: 0.1;
+            z-index: 150;
+            pointer-events: none;
+        }
+        
+        .scanline::before {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: rgba(77, 184, 255, 0.5);
+            animation: scanline 4s linear infinite;
+        }
+        
+        @keyframes scanline {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.2em;
+            }
+            
+            .regions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-text">Loading Naboo Navigation...</div>
+        <div class="loading-bar"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+    <div class="scanline"></div>
+    
+    <div class="header">
+        <h1>Naboo Regional Explorer</h1>
+        <button class="control-btn" onclick="goBack()">← BACK</button>
+    </div>
+    
+    <div class="main-content">
+        <div class="intro-panel">
+            <h2>Welcome Traveler</h2>
+            <p>Naboo - a beautiful world in the Mid Rim known for its lush green landscapes, sparkling lakes, and magnificent architecture. Home to both the Naboo people and the aquatic Gungans.</p>
+            <p>Select a region below to discover the wonders and hidden depths of this peaceful planet.</p>
+        </div>
+        
+        <div class="regions-grid" id="regionsGrid"></div>
+    </div>
+    
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const regions = [
+            {
+                name: "Theed",
+                icon: "🏛️",
+                type: "Capital City",
+                danger: "peaceful",
+                description: "The magnificent capital city of Naboo, featuring stunning architecture with domed buildings and grand plazas overlooking waterfalls.",
+                locations: ["Royal Palace", "Theed Hangar", "Palace Plaza", "Theed Generator", "Palace Gardens"],
+                dangers: ["Occasional Political Tensions", "Historic Battle Sites"],
+                details: "Theed serves as the seat of Naboo's elected monarchy. Built on the edge of towering cliffs, the city combines elegant Italian Renaissance-inspired architecture with advanced technology. The Royal Palace dominates the skyline, while the streets are lined with shops, cafes, and cultural centers."
+            },
+            {
+                name: "Lake Country",
+                icon: "🏞️",
+                type: "Rural Retreats",
+                danger: "peaceful",
+                description: "Serene lake region dotted with beautiful villas and vacation homes. Famous for romantic getaways and breathtaking natural beauty.",
+                locations: ["Varykino Villa", "Lake Retreat", "Island Lodge", "Waterfall Estates"],
+                dangers: ["Minimal - Peaceful Region"],
+                details: "The Lake Country represents Naboo at its most tranquil. Crystal-clear waters reflect the sky, while elegant villas built in traditional Naboo style provide perfect retreats. The region is particularly famous for the lakeside villa where Padmé and Anakin spent their honeymoon."
+            },
+            {
+                name: "Gungan Sacred Place",
+                icon: "🌿",
+                type: "Ancient Ruins",
+                danger: "low",
+                description: "Sacred temple ruins in the wetlands, holding deep spiritual significance for the Gungan people. Mysterious and beautiful.",
+                locations: ["Sacred Temple", "Ancient Statues", "Ceremonial Grounds", "Wetland Paths"],
+                dangers: ["Wildlife", "Difficult Terrain", "Sacred Territory"],
+                details: "These ancient ruins predate modern Gungan civilization and are treated with great reverence. Massive stone heads and carved pillars rise from the swamps, covered in moss and vines. The Gungans hold ceremonies here during important occasions, and outsiders are rarely permitted to visit."
+            },
+            {
+                name: "Otoh Gunga",
+                icon: "🫧",
+                type: "Underwater City",
+                danger: "low",
+                description: "The spectacular underwater capital of the Gungans, composed of bubble-like hydrostatic structures deep beneath Lake Paonga.",
+                locations: ["High Council Chamber", "City Center Bubbles", "Sacred Place Portal", "Transport Hub"],
+                dangers: ["Underwater Pressure", "Requires Special Equipment", "Colo Claw Fish"],
+                details: "Otoh Gunga is an engineering marvel built entirely underwater using hydrostatic bubble technology. The city glows beautifully in the depths, with countless bubble structures connected by organic-looking tubes. Home to Boss Nass and the Gungan High Council, it represents the pinnacle of Gungan civilization and culture."
+            },
+            {
+                name: "Lianorm Swamp",
+                icon: "🦎",
+                type: "Wetlands",
+                danger: "medium",
+                description: "Vast swamplands covering much of Naboo's surface. Home to diverse wildlife and hidden Gungan settlements.",
+                locations: ["Swamp Villages", "Peko Peko Hunting Grounds", "Hidden Paths", "Ancient Groves"],
+                dangers: ["Dangerous Wildlife", "Colo Claw Fish", "Opee Sea Killers", "Getting Lost"],
+                details: "The swamps are teeming with life, from harmless peko pekos to deadly predators. Gungans have learned to navigate these treacherous waters over millennia, but outsiders often require guides. The dense vegetation and murky waters hide many secrets, including abandoned ruins and rare species."
+            },
+            {
+                name: "Naboo Plains",
+                icon: "🌾",
+                type: "Grasslands",
+                danger: "peaceful",
+                description: "Rolling green hills and meadows stretching across the planet. Site of the famous Battle of Naboo and home to farming communities.",
+                locations: ["Battle Plains", "Farm Estates", "Pastoral Villages", "Training Grounds"],
+                dangers: ["Historical Battle Site", "Minimal Current Threats"],
+                details: "These vast grasslands were the site of the climactic battle between Gungan forces and the Trade Federation droid army. Today, the plains are peaceful again, with monuments marking the battlefield. Farming communities cultivate the fertile land, and shaaks graze peacefully across the rolling hills."
+            },
+            {
+                name: "Dee'ja Peak",
+                icon: "⛰️",
+                type: "Mountain Region",
+                danger: "low",
+                description: "Mountain peaks rising from Naboo's landscape, offering stunning views and hidden valleys. Home to rare species and remote settlements.",
+                locations: ["Peak Observatories", "Mountain Lodges", "Hidden Valleys", "Meditation Retreats"],
+                dangers: ["Altitude", "Weather Changes", "Steep Terrain"],
+                details: "Though Naboo is known for its lakes and plains, the Dee'ja Peak region offers dramatic mountain landscapes. Artists and philosophers often retreat to lodges here for inspiration and solitude. The peaks provide spectacular views of sunrises over the planet's waterways."
+            },
+            {
+                name: "Planet Core",
+                icon: "🌊",
+                type: "Underwater Network",
+                danger: "medium",
+                description: "Mysterious underwater passages connecting Naboo's oceans and lakes through the planet's porous core. Extremely dangerous to navigate.",
+                locations: ["Core Tunnels", "Underwater Caves", "Hydrostatic Passages", "Deep Chambers"],
+                dangers: ["Opee Sea Killer", "Sando Aqua Monster", "Colo Claw Fish", "Extreme Pressure", "Easy to Get Lost"],
+                details: "Naboo's core is filled with water rather than molten rock, creating a vast network of underwater tunnels and caves. This unique geological feature allows travel between bodies of water but is incredibly dangerous. The tunnels are home to massive predators, and the passages are difficult to navigate even for experienced pilots."
+            }
+        ];
+
+        function initPage() {
+            const grid = document.getElementById('regionsGrid');
+            
+            regions.forEach(region => {
+                const card = document.createElement('div');
+                card.className = 'region-card';
+                card.onclick = () => showRegionDetails(region);
+                
+                let dangerColor = '#ffaa00';
+                if (region.danger === 'peaceful') dangerColor = '#00ff88';
+                if (region.danger === 'low') dangerColor = '#4db8ff';
+                if (region.danger === 'medium') dangerColor = '#ffaa00';
+                
+                card.innerHTML = `
+                    <div class="region-header">
+                        <div class="region-icon" style="color: ${dangerColor}">${region.icon}</div>
+                        <div class="region-title">
+                            <h3>${region.name}</h3>
+                            <div class="region-type">${region.type}</div>
+                        </div>
+                    </div>
+                    <div class="region-description">${region.description}</div>
+                    <div class="location-tags">
+                        ${region.locations.slice(0, 3).map(loc => `<div class="location-tag">${loc}</div>`).join('')}
+                        ${region.locations.length > 3 ? `<div class="location-tag">+${region.locations.length - 3} more</div>` : ''}
+                    </div>
+                    <div class="danger-level ${region.danger}">
+                        <strong>Status: ${region.danger.toUpperCase()}</strong>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function showRegionDetails(region) {
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalBody.innerHTML = `
+                <div class="modal-header">
+                    <h2>${region.name}</h2>
+                    <div class="region-type" style="font-size: 1.2em;">${region.icon} ${region.type}</div>
+                </div>
+                
+                <div class="modal-section">
+                    <h3>Overview</h3>
+                    <p>${region.details}</p>
+                </div>
+                
+                <div class="modal-section">
+                    <h3>Notable Locations</h3>
+                    <ul>
+                        ${region.locations.map(loc => `<li>${loc}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div class="modal-section">
+                    <h3>Known Dangers</h3>
+                    <ul>
+                        ${region.dangers.map(danger => `<li>${danger}</li>`).join('')}
+                    </ul>
+                </div>
+                
+                <div class="danger-level ${region.danger}">
+                    <strong>Status: ${region.danger.toUpperCase()}</strong>
+                </div>
+            `;
+            
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        window.addEventListener("load", function() {
+            setTimeout(() => {
+                document.getElementById("loading").style.opacity = "0";
+                setTimeout(() => {
+                    document.getElementById("loading").style.display = "none";
+                }, 1000);
+            }, 1500);
+        });
+
+        const container = document.getElementById("canvas-container");
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0x223344, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0x4db8ff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        const pointLight1 = new THREE.PointLight(0x00ff88, 0.8, 10);
+        pointLight1.position.set(-2, 1, 3);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0x4db8ff, 0.8, 10);
+        pointLight2.position.set(2, -1, 3);
+        scene.add(pointLight2);
+
+        const particleCount = 1000;
+        const particles = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            positions[i * 3] = (Math.random() - 0.5) * 20;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 20;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 20;
+        }
+
+        particles.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            color: 0x4db8ff,
+            size: 0.08,
+            transparent: true,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particleSystem = new THREE.Points(particles, particleMaterial);
+        scene.add(particleSystem);
+
+        const gridHelper = new THREE.GridHelper(20, 20, 0x00ff88, 0x4db8ff);
+        gridHelper.position.y = -3;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.15;
+        scene.add(gridHelper);
+
+        window.addEventListener("resize", function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        let mouseX = 0;
+        let mouseY = 0;
+
+        window.addEventListener("mousemove", function(event) {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const positions = particleSystem.geometry.attributes.position.array;
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3 + 2] += 0.005;
+                if (positions[i * 3 + 2] > 10) {
+                    positions[i * 3 + 2] = -10;
+                }
+            }
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+
+            camera.position.x += (mouseX * 0.2 - camera.position.x) * 0.03;
+            camera.position.y += (mouseY * 0.2 - camera.position.y) * 0.03;
+            camera.lookAt(scene.position);
+
+            gridHelper.rotation.y += 0.0008;
+
+            pointLight1.position.x = Math.sin(Date.now() * 0.001) * 3;
+            pointLight1.position.z = Math.cos(Date.now() * 0.001) * 3;
+            
+            pointLight2.position.x = Math.cos(Date.now() * 0.0015) * 3;
+            pointLight2.position.z = Math.sin(Date.now() * 0.0015) * 3;
+
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+        
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') {
+                closeModal();
+            }
+        });
+        
+        initPage();
+    </script>
+</body>
+</html>
